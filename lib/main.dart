@@ -1,6 +1,16 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'screens/camera_screen.dart';
 
-void main() {
+List<CameraDescription> kameralar = [];
+
+Future<void> main() async {
+  // Flutter motorunun tam olarak yüklendiğinden emin ol
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Cihazdaki kameraları bul ve listeye at
+  kameralar = await availableCameras();
+
   runApp(const VisionCheckoutApp());
 }
 
@@ -16,14 +26,7 @@ class VisionCheckoutApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepOrange),
         useMaterial3: true,
       ),
-      home: const Scaffold(
-        body: Center(
-          child: Text(
-            'Kamera Ekranı Buraya Gelecek',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
+      home: KameraEkrani(kameralar: kameralar),
     );
   }
 }
