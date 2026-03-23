@@ -1,5 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class KameraEkrani extends StatefulWidget {
   final List<CameraDescription> kameralar;
@@ -14,6 +15,31 @@ class _KameraEkraniState extends State<KameraEkrani> {
   late CameraController _controller;
   bool _isReady = false;
 
+  // Geçici test verisi ekleme fonksiyonu
+  Future<void> _testUrunuEkle() async {
+    try {
+      await FirebaseFirestore.instance.collection('urunler').add({
+        'isim': 'Portakal',
+        'fiyat': 24.50,
+        'stok': 50,
+        'kategori': 'Meyve',
+        'eklenmeTarihi': FieldValue.serverTimestamp(),
+      });
+      
+      // Başarılı olursa ekranda küçük bir uyarı gösterelim
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Portakal başarıyla veritabanına eklendi! 🍊'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("Hata oluştu: $e");
+    }
+  }
+  
   @override
   void initState() {
     super.initState();
@@ -55,6 +81,14 @@ class _KameraEkraniState extends State<KameraEkrani> {
         title: const Text('Ürün Tanıma', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.black87,
         centerTitle: true,
+        // BUTON BURAYA EKLENDİ
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_shopping_cart, color: Colors.deepOrange),
+            onPressed: _testUrunuEkle, 
+            tooltip: 'Test Ürünü Ekle',
+          ),
+        ],
       ),
       body: Stack(
         children: [

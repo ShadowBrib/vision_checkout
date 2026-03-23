@@ -48,3 +48,4 @@ app.*.map.json
 /windows
 /macos
 /web
+lib/firebase_options.dart

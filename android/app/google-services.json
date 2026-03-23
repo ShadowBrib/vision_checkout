@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "702910538899",
+    "project_id": "vision-checkout-71b7f",
+    "storage_bucket": "vision-checkout-71b7f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:702910538899:android:f5f5eb059c254d0a1d9966",
+        "android_client_info": {
+          "package_name": "com.enes.vision_checkout"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgBK1gzUlJcjzI-09eNGAm72g0hBEeNyI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
