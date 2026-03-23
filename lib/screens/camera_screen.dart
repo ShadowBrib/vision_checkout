@@ -1,102 +1,101 @@
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 class KameraEkrani extends StatefulWidget {
-  final List<CameraDescription> kameralar;
-
-  const KameraEkrani({super.key, required this.kameralar});
+  const KameraEkrani({super.key});
 
   @override
   State<KameraEkrani> createState() => _KameraEkraniState();
 }
 
 class _KameraEkraniState extends State<KameraEkrani> {
-  late CameraController _controller;
-  bool _isReady = false;
+  // Ekranda göstereceğimiz durum değişkenleri
+  String _durumBaslik = 'Ürün Bekleniyor...';
+  String _durumDetay = 'Lütfen ürünü veya barkodu çerçevenin içine yerleştirin.';
+  Color _kartRengi = Colors.white;
+  IconData _kartIkoni = Icons.document_scanner;
+  
+  // Kameranın saniyede onlarca kez aynı barkodu okumasını engellemek için bir kilit
+  bool _islemYapiliyor = false;
 
-  // Geçici test verisi ekleme fonksiyonu
-  Future<void> _testUrunuEkle() async {
+  // Barkod okunduğunda çalışacak ana fonksiyon
+  Future<void> _barkoduVeritabanindaAra(String okunanBarkod) async {
+    if (_islemYapiliyor) return; // Zaten bir ürün aranıyorsa dur
+    
+    setState(() {
+      _islemYapiliyor = true;
+      _durumBaslik = 'Aranıyor...';
+      _durumDetay = 'Barkod: $okunanBarkod sorgulanıyor.';
+      _kartIkoni = Icons.search;
+    });
+
     try {
-      await FirebaseFirestore.instance.collection('urunler').add({
-        'isim': 'Portakal',
-        'fiyat': 24.50,
-        'stok': 50,
-        'kategori': 'Meyve',
-        'eklenmeTarihi': FieldValue.serverTimestamp(),
-      });
-      
-      // Başarılı olursa ekranda küçük bir uyarı gösterelim
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Portakal başarıyla veritabanına eklendi! 🍊'),
-            backgroundColor: Colors.green,
-          ),
-        );
+      // Firebase'e gidip 'barkod' alanı okunan barkoda eşit olan ürünü getir
+      var sonuc = await FirebaseFirestore.instance
+          .collection('urunler')
+          .where('barkod', isEqualTo: okunanBarkod)
+          .limit(1)
+          .get();
+
+      if (sonuc.docs.isNotEmpty) {
+        // Ürün bulundu!
+        var urunBilgisi = sonuc.docs.first.data();
+        setState(() {
+          _durumBaslik = urunBilgisi['isim'];
+          _durumDetay = 'Fiyat: ${urunBilgisi['fiyat']} TL | Stok: ${urunBilgisi['stok']}';
+          _kartRengi = Colors.green.shade50;
+          _kartIkoni = Icons.check_circle;
+        });
+      } else {
+        // Barkod okundu ama Firebase'de yok
+        setState(() {
+          _durumBaslik = 'Kayıtsız Ürün';
+          _durumDetay = 'Bu barkod ($okunanBarkod) sistemde bulunamadı.';
+          _kartRengi = Colors.red.shade50;
+          _kartIkoni = Icons.error;
+        });
       }
     } catch (e) {
-      debugPrint("Hata oluştu: $e");
+      debugPrint("Arama hatası: $e");
     }
-  }
-  
-  @override
-  void initState() {
-    super.initState();
-    // İlk kamerayı (genelde arka kamera) seç ve başlat
-    _controller = CameraController(widget.kameralar[0], ResolutionPreset.high);
-    _controller.initialize().then((_) {
-      if (!mounted) return;
-      setState(() {
-        _isReady = true;
-      });
-    }).catchError((Object e) {
-      if (e is CameraException) {
-        debugPrint('Kamera hatası: ${e.description}');
+
+    // 3 saniye sonra ekranı tekrar yeni ürün okumaya hazır hale getir
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _islemYapiliyor = false;
+          _durumBaslik = 'Sıradaki Ürün...';
+          _durumDetay = 'Yeni bir barkod okutabilirsiniz.';
+          _kartRengi = Colors.white;
+          _kartIkoni = Icons.document_scanner;
+        });
       }
     });
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (!_isReady) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator(color: Colors.deepOrange)),
-      );
-    }
-
-    // Ekran boyutlarını alıyoruz (Çerçeveyi ortalamak için)
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Ürün Tanıma', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.black87,
         centerTitle: true,
-        // BUTON BURAYA EKLENDİ
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_shopping_cart, color: Colors.deepOrange),
-            onPressed: _testUrunuEkle, 
-            tooltip: 'Test Ürünü Ekle',
-          ),
-        ],
       ),
       body: Stack(
         children: [
-          // 1. Katman: Kameradan gelen tam ekran canlı görüntü
-          SizedBox(
-            width: size.width,
-            height: size.height,
-            child: CameraPreview(_controller),
+          // 1. Katman: Akıllı Barkod Tarayıcı Kamera
+          MobileScanner(
+            onDetect: (capture) {
+              final List<Barcode> barcodes = capture.barcodes;
+              for (final barcode in barcodes) {
+                if (barcode.rawValue != null) {
+                  _barkoduVeritabanindaAra(barcode.rawValue!);
+                  break; // İlk bulduğu barkodu alıp döngüden çıkması yeterli
+                }
+              }
+            },
           ),
           
           // 2. Katman: Tarama Çerçevesi (Ortadaki turuncu kare)
@@ -111,15 +110,16 @@ class _KameraEkraniState extends State<KameraEkrani> {
             ),
           ),
           
-          // 3. Katman: Alt kısımdaki bilgi ve durum kartı
+          // 3. Katman: Dinamik Bilgi Kartı
           Positioned(
             bottom: 40,
             left: 20,
             right: 20,
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.95),
+                color: _kartRengi.withOpacity(0.95),
                 borderRadius: BorderRadius.circular(15),
                 boxShadow: [
                   BoxShadow(
@@ -132,17 +132,18 @@ class _KameraEkraniState extends State<KameraEkrani> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.document_scanner, color: Colors.deepOrange, size: 40),
+                  Icon(_kartIkoni, color: Colors.deepOrange, size: 40),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Ürün Bekleniyor...',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                  Text(
+                    _durumBaslik,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    'Lütfen ürünü veya barkodu çerçevenin içine yerleştirin.',
+                    _durumDetay,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                    style: TextStyle(color: Colors.grey[800], fontSize: 15),
                   ),
                 ],
               ),
