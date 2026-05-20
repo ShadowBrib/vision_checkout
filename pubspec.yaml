@@ -41,6 +41,7 @@ dependencies:
   cloud_firestore: ^6.1.3
   google_mlkit_barcode_scanning: ^0.14.2
   mobile_scanner: ^7.2.0
+  tflite_v2: ^1.0.0
 
 dev_dependencies:
   flutter_test:
@@ -58,14 +59,12 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
   uses-material-design: true
+  # YENİ EKLENEN KISIM BURASI:
   assets:
-    - assets/models/
-
+    - assets/labels.txt
+    - assets/model.tflite  # Model dosyanın adı tam olarak neyse onu yaz (örn: su_sisesi.tflite ise öyle yaz)
+    flutter # Model dosyanın adı tam olarak neyse onu yaz (örn: su_sisesi.tflite ise öyle yaz)
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

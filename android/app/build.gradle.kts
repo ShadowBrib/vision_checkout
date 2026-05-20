@@ -12,6 +12,12 @@ android {
     namespace = "com.enes.vision_checkout"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+    
+    // YENİ VE MODERN SIKIŞTIRMA İPTALİ KODU
+    androidResources {
+        noCompress.add("tflite")
+        noCompress.add("lite")
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -27,7 +33,10 @@ android {
         applicationId = "com.enes.vision_checkout"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        
+        // KOTLIN UYUMLU MINIMUM SDK (Eşittir işareti ile)
+        minSdk = flutter.minSdkVersion      
+        
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

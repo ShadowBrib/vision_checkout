@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'urun_ekleme_ekrani.dart';
 
 class KameraEkrani extends StatefulWidget {
   const KameraEkrani({super.key});
@@ -10,18 +11,17 @@ class KameraEkrani extends StatefulWidget {
 }
 
 class _KameraEkraniState extends State<KameraEkrani> {
-  // Ekranda göstereceğimiz durum değişkenleri
+  // Kamerayı durdurup başlatmak için kontrolcü
+  final MobileScannerController _kameraMotoru = MobileScannerController();
+
   String _durumBaslik = 'Ürün Bekleniyor...';
   String _durumDetay = 'Lütfen ürünü veya barkodu çerçevenin içine yerleştirin.';
   Color _kartRengi = Colors.white;
   IconData _kartIkoni = Icons.document_scanner;
-  
-  // Kameranın saniyede onlarca kez aynı barkodu okumasını engellemek için bir kilit
   bool _islemYapiliyor = false;
 
-  // Barkod okunduğunda çalışacak ana fonksiyon
   Future<void> _barkoduVeritabanindaAra(String okunanBarkod) async {
-    if (_islemYapiliyor) return; // Zaten bir ürün aranıyorsa dur
+    if (_islemYapiliyor) return; 
     
     setState(() {
       _islemYapiliyor = true;
@@ -31,7 +31,6 @@ class _KameraEkraniState extends State<KameraEkrani> {
     });
 
     try {
-      // Firebase'e gidip 'barkod' alanı okunan barkoda eşit olan ürünü getir
       var sonuc = await FirebaseFirestore.instance
           .collection('urunler')
           .where('barkod', isEqualTo: okunanBarkod)
@@ -39,7 +38,6 @@ class _KameraEkraniState extends State<KameraEkrani> {
           .get();
 
       if (sonuc.docs.isNotEmpty) {
-        // Ürün bulundu!
         var urunBilgisi = sonuc.docs.first.data();
         setState(() {
           _durumBaslik = urunBilgisi['isim'];
@@ -48,7 +46,6 @@ class _KameraEkraniState extends State<KameraEkrani> {
           _kartIkoni = Icons.check_circle;
         });
       } else {
-        // Barkod okundu ama Firebase'de yok
         setState(() {
           _durumBaslik = 'Kayıtsız Ürün';
           _durumDetay = 'Bu barkod ($okunanBarkod) sistemde bulunamadı.';
@@ -60,7 +57,6 @@ class _KameraEkraniState extends State<KameraEkrani> {
       debugPrint("Arama hatası: $e");
     }
 
-    // 3 saniye sonra ekranı tekrar yeni ürün okumaya hazır hale getir
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         setState(() {
@@ -75,24 +71,27 @@ class _KameraEkraniState extends State<KameraEkrani> {
   }
 
   @override
+  void dispose() {
+    _kameraMotoru.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text('Ürün Tanıma', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.black87,
-        centerTitle: true,
-      ),
+      // AppBar'ı kaldırdık, daha modern ve tam ekran bir görüntü sağladık
       body: Stack(
         children: [
-          // 1. Katman: Akıllı Barkod Tarayıcı Kamera
+          // 1. Katman: Akıllı Barkod Tarayıcı Kamera (Tam Ekran)
           MobileScanner(
+            controller: _kameraMotoru,
             onDetect: (capture) {
               final List<Barcode> barcodes = capture.barcodes;
               for (final barcode in barcodes) {
                 if (barcode.rawValue != null) {
                   _barkoduVeritabanindaAra(barcode.rawValue!);
-                  break; // İlk bulduğu barkodu alıp döngüden çıkması yeterli
+                  break; 
                 }
               }
             },
@@ -110,46 +109,88 @@ class _KameraEkraniState extends State<KameraEkrani> {
             ),
           ),
           
-          // 3. Katman: Dinamik Bilgi Kartı
+          // 3. Katman (YENİ): Dinamik Bilgi Kartı (EKRANIN EN ÜSTÜNE TAŞINDI)
           Positioned(
-            bottom: 40,
+            top: 50, // Üst kısımdan biraz boşluk
             left: 20,
             right: 20,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(15), // Biraz daha ince yaptık
               decoration: BoxDecoration(
-                color: _kartRengi.withOpacity(0.95),
-                borderRadius: BorderRadius.circular(15),
+                color: _kartRengi.withOpacity(0.90),
+                borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.3),
-                    blurRadius: 10,
-                    spreadRadius: 2,
+                    blurRadius: 8,
+                    spreadRadius: 1,
                   )
                 ],
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              child: Row( // Sığdırmak için Row (yatay) düzenine geçtik
                 children: [
-                  Icon(_kartIkoni, color: Colors.deepOrange, size: 40),
-                  const SizedBox(height: 10),
-                  Text(
-                    _durumBaslik,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    _durumDetay,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[800], fontSize: 15),
+                  Icon(_kartIkoni, color: Colors.deepOrange, size: 35),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _durumBaslik,
+                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _durumDetay,
+                          style: TextStyle(color: Colors.grey[800], fontSize: 14),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
           ),
         ],
+      ),
+      
+      // YENİ MODEL: FloatingActionButton yerine bütünleşik Alt Bar Butonu
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          border: Border(top: BorderSide(color: Colors.grey.shade900, width: 1)),
+        ),
+        child: SizedBox(
+          height: 55,
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              _kameraMotoru.stop(); // Gitmeden önce buradaki kamerayı uyut
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const UrunEklemeEkrani()),
+              );
+              _kameraMotoru.start(); // Geri dönünce kamerayı uyandır
+            },
+            icon: const Icon(Icons.add, color: Colors.white, size: 28),
+            label: const Text(
+              'YENİ ÜRÜN EKLE',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepOrange,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 5,
+            ),
+          ),
+        ),
       ),
     );
   }
